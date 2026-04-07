@@ -96,8 +96,11 @@ class _HomeScreenState extends State<HomeScreen>
       final paths = files.map((f) => f.path).toList();
       final edited = await Navigator.push<List<String>>(
         context,
-        MaterialPageRoute(
-          builder: (_) => PagesEditorScreen(imagePaths: paths),
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => PagesEditorScreen(imagePaths: paths),
+          transitionsBuilder: (_, animation, __, child) =>
+              FadeTransition(opacity: animation, child: child),
+          transitionDuration: const Duration(milliseconds: 400),
         ),
       );
       if (!context.mounted) return;

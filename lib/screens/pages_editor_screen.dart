@@ -172,8 +172,11 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
   Future<void> _editPage(int index) async {
     final corners = await Navigator.push<List<Offset>>(
       context,
-      MaterialPageRoute(
-        builder: (_) => QuadCropScreen(imagePath: _paths[index]),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => QuadCropScreen(imagePath: _paths[index]),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 400),
       ),
     );
     if (corners == null || !mounted) return;
@@ -248,8 +251,12 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
   void _showPagePreview(int index) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        pageBuilder: (_, __, ___) => Scaffold(
           backgroundColor: const Color(0xFF0F0F23),
           appBar: AppBar(
             title: Text('Strona ${index + 1}'),
