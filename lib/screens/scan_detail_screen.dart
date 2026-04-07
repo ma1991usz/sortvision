@@ -39,12 +39,16 @@ class _ScanDetailScreenState extends State<ScanDetailScreen>
   int _totalPages = 0;
   int _currentPage = 0;
   bool _pdfReady = false;
+  bool _mounted = false;
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) setState(() => _mounted = true);
+    });
   }
 
   @override
@@ -280,50 +284,63 @@ class _ScanDetailScreenState extends State<ScanDetailScreen>
       body: Column(
         children: [
           // PDF - 45% ekranu
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.45,
-            child: Stack(
-              children: [
-                PDFView(
-                  filePath: widget.filePath,
-                  enableSwipe: true,
-                  swipeHorizontal: false,
-                  autoSpacing: true,
-                  pageFling: true,
-                  backgroundColor: _bgColor,
-                  onRender: (pages) => setState(() {
-                    _totalPages = pages ?? 0;
-                    _pdfReady = true;
-                  }),
-                  onPageChanged: (page, _) =>
-                      setState(() => _currentPage = (page ?? 0) + 1),
-                ),
-                if (!_pdfReady)
-                  const Center(
-                    child: CircularProgressIndicator(color: _accentBlue),
-                  ),
-                if (_pdfReady && _totalPages > 1)
-                  Positioned(
-                    bottom: 12,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _surfaceColor.withAlpha(220),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '$_currentPage / $_totalPages',
-                          style: const TextStyle(
-                              color: _textPrimary, fontSize: 13),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: 200,
+              maxHeight: MediaQuery.of(context).size.height * 0.45,
+            ),
+            child: Container(
+              color: _bgColor,
+              height: MediaQuery.of(context).size.height * 0.45,
+              child: Stack(
+                children: [
+                  if (_mounted)
+                    PDFView(
+                      key: Key(widget.filePath),
+                      filePath: widget.filePath,
+                      enableSwipe: true,
+                      swipeHorizontal: false,
+                      autoSpacing: true,
+                      pageFling: true,
+                      fitPolicy: FitPolicy.BOTH,
+                      fitEachPage: true,
+                      pageSnap: true,
+                      backgroundColor: _bgColor,
+                      onRender: (pages) => setState(() {
+                        _totalPages = pages ?? 0;
+                        if (_currentPage == 0) _currentPage = 1;
+                        _pdfReady = true;
+                      }),
+                      onPageChanged: (page, _) =>
+                          setState(() => _currentPage = (page ?? 0) + 1),
+                    ),
+                  if (!_pdfReady)
+                    const Center(
+                      child: CircularProgressIndicator(color: _accentBlue),
+                    ),
+                  if (_pdfReady && _totalPages > 1)
+                    Positioned(
+                      bottom: 12,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _surfaceColor.withAlpha(220),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$_currentPage / $_totalPages',
+                            style: const TextStyle(
+                                color: _textPrimary, fontSize: 13),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           // TabBar - nie scrolluje sie
