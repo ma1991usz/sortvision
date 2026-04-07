@@ -178,10 +178,46 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
     );
     if (corners == null || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Przetwarzanie...'),
-        duration: Duration(minutes: 1),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: const Color(0xCC1A1A2E),
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Card(
+            color: const Color(0xFF16213E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF4361EE)),
+                  SizedBox(height: 20),
+                  Text(
+                    'Przetwarzanie dokumentu...',
+                    style: TextStyle(
+                      color: Color(0xFFEEEEEE),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Korekcja perspektywy i optymalizacja...',
+                    style: TextStyle(
+                      color: Color(0xFF8A8AB0),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
 
@@ -204,9 +240,83 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
     final resultPath =
         await compute(runDocumentPipelineNoDeskew, perspectivePath);
     if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      Navigator.of(context).pop();
       setState(() => _paths[index] = resultPath);
     }
+  }
+
+  void _showPagePreview(int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: const Color(0xFF0F0F23),
+          appBar: AppBar(
+            title: Text('Strona ${index + 1}'),
+            backgroundColor: const Color(0xFF1A1A2E),
+            foregroundColor: const Color(0xFFEEEEEE),
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 5.0,
+                  child: Center(
+                    child: Image.file(
+                      File(_paths[index]),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _editPage(index);
+                        },
+                        icon: const Icon(Icons.crop_rounded),
+                        label: const Text('Edytuj'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF4361EE),
+                          side: const BorderSide(color: Color(0xFF4361EE)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Zamknij'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16213E),
+                          foregroundColor: const Color(0xFFEEEEEE),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── UI ─────────────────────────────────────────────────────────────────
@@ -226,9 +336,9 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
           children: [
             // Miniaturka
             Tooltip(
-              message: 'Dotknij aby poprawić skan',
+              message: 'Dotknij aby zobaczyć podgląd',
               child: InkWell(
-                onTap: () => _editPage(index),
+                onTap: () => _showPagePreview(index),
                 borderRadius: const BorderRadius.horizontal(
                   left: Radius.circular(12),
                 ),
@@ -279,6 +389,13 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
                   ),
                 ],
               ),
+            ),
+            // Przycisk edycji kadrowania
+            IconButton(
+              icon: const Icon(Icons.crop_rounded,
+                  color: Color(0xFF4361EE), size: 22),
+              tooltip: 'Edytuj kadrowanie',
+              onPressed: () => _editPage(index),
             ),
             // Przycisk usuń
             IconButton(
