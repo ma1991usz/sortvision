@@ -270,46 +270,49 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
                   ),
                 ),
               ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _editPage(index);
-                        },
-                        icon: const Icon(Icons.crop_rounded),
-                        label: const Text('Edytuj'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF4361EE),
-                          side: const BorderSide(color: Color(0xFF4361EE)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+              SafeArea(
+                minimum: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _editPage(index);
+                          },
+                          icon: const Icon(Icons.crop_rounded),
+                          label: const Text('Edytuj'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF4361EE),
+                            side: const BorderSide(color: Color(0xFF4361EE)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                        label: const Text('Zamknij'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF16213E),
-                          foregroundColor: const Color(0xFFEEEEEE),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                          label: const Text('Zamknij'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF16213E),
+                            foregroundColor: const Color(0xFFEEEEEE),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
