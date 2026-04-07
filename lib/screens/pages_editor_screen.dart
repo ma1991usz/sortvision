@@ -1,12 +1,13 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
-import 'package:image/image.dart' as img;
-import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../services/perspective_transform.dart';
+import '../utils/document_pipeline.dart' show runDocumentPipelineNoDeskew;
+import '../widgets/quad_crop_screen.dart';
 
 const _bgColor = Color(0xFF1A1A2E);
 const _surfaceColor = Color(0xFF16213E);
@@ -16,169 +17,6 @@ const _textPrimary = Color(0xFFEEEEEE);
 const _textSecondary = Color(0xFF8A8AB0);
 
 const int _maxPages = 20;
-
-// ─── Document filter pipeline (runs in isolate via compute) ──────────
-
-/// Horizontal projection variance – measures how well text lines align.
-double _projectionVariance(img.Image gray, double angle) {
-  final rotated = img.copyRotate(gray, angle: angle);
-  final h = rotated.height;
-  final w = rotated.width;
-  // Central 80 % to avoid rotation-fill artifacts
-  final yStart = (h * 0.1).round();
-  final yEnd = (h * 0.9).round();
-  final xStart = (w * 0.1).round();
-  final xEnd = (w * 0.9).round();
-  final rows = yEnd - yStart;
-  if (rows <= 0) return 0;
-
-  final projection = List<int>.filled(rows, 0);
-  for (int y = yStart; y < yEnd; y++) {
-    for (int x = xStart; x < xEnd; x++) {
-      if (rotated.getPixel(x, y).r.toInt() < 128) {
-        projection[y - yStart]++;
-      }
-    }
-  }
-
-  double mean = 0;
-  for (final v in projection) {
-    mean += v;
-  }
-  mean /= rows;
-
-  double variance = 0;
-  for (final v in projection) {
-    final d = v - mean;
-    variance += d * d;
-  }
-  return variance / rows;
-}
-
-/// 1. DESKEW – detect skew angle via projection profile, max ±15°.
-img.Image _deskew(img.Image src) {
-  final small = img.copyResize(src, width: (src.width * 0.25).round());
-  final gray = img.grayscale(small);
-
-  double bestAngle = 0;
-  double bestScore = -1;
-
-  // Coarse search: step 2°
-  for (double a = -15; a <= 15; a += 2) {
-    final s = _projectionVariance(gray, a);
-    if (s > bestScore) {
-      bestScore = s;
-      bestAngle = a;
-    }
-  }
-
-  // Fine search: ±2° around best, step 0.5°
-  final coarse = bestAngle;
-  for (double a = coarse - 2; a <= coarse + 2; a += 0.5) {
-    final s = _projectionVariance(gray, a);
-    if (s > bestScore) {
-      bestScore = s;
-      bestAngle = a;
-    }
-  }
-
-  if (bestAngle.abs() < 0.5) return src; // negligible skew
-  return img.copyRotate(src, angle: bestAngle);
-}
-
-/// 2. FORMAT A4 – resize with aspect ratio, letterbox on white canvas.
-img.Image _formatA4(img.Image src) {
-  const a4W = 2480;
-  const a4H = 3508;
-
-  final scaleX = a4W / src.width;
-  final scaleY = a4H / src.height;
-  final scale = math.min(scaleX, scaleY);
-
-  final newW = (src.width * scale).round();
-  final newH = (src.height * scale).round();
-  final resized = img.copyResize(src, width: newW, height: newH);
-
-  final canvas = img.Image(width: a4W, height: a4H);
-  img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
-
-  final offsetX = (a4W - newW) ~/ 2;
-  final offsetY = (a4H - newH) ~/ 2;
-  img.compositeImage(canvas, resized, dstX: offsetX, dstY: offsetY);
-  return canvas;
-}
-
-/// 3. THRESHOLD – adaptive 32×32 blocks, > mean*0.85 → white, rest stays dark.
-img.Image _adaptiveThreshold(img.Image src) {
-  final gray = img.grayscale(src);
-  final w = gray.width;
-  final h = gray.height;
-  const blockSize = 32;
-
-  final result = img.Image(width: w, height: h);
-
-  for (int by = 0; by < h; by += blockSize) {
-    for (int bx = 0; bx < w; bx += blockSize) {
-      final bw = math.min(blockSize, w - bx);
-      final bh = math.min(blockSize, h - by);
-
-      int sum = 0;
-      int count = 0;
-      for (int y = by; y < by + bh; y++) {
-        for (int x = bx; x < bx + bw; x++) {
-          sum += gray.getPixel(x, y).r.toInt();
-          count++;
-        }
-      }
-      final double mean = sum / count;
-      final int threshold = (mean * 0.85).round();
-
-      for (int y = by; y < by + bh; y++) {
-        for (int x = bx; x < bx + bw; x++) {
-          final lum = gray.getPixel(x, y).r.toInt();
-          if (lum > threshold) {
-            result.setPixelRgb(x, y, 255, 255, 255);
-          } else {
-            result.setPixelRgb(x, y, lum, lum, lum);
-          }
-        }
-      }
-    }
-  }
-  return result;
-}
-
-/// 4. BLACKENING – darken pixels < 128 by subtracting 40.
-img.Image _blacken(img.Image src) {
-  for (int y = 0; y < src.height; y++) {
-    for (int x = 0; x < src.width; x++) {
-      final r = src.getPixel(x, y).r.toInt();
-      if (r < 128) {
-        final v = math.max(0, r - 40);
-        src.setPixelRgb(x, y, v, v, v);
-      }
-    }
-  }
-  return src;
-}
-
-/// Full pipeline entry-point – called via [compute] in a separate isolate.
-String _runDocumentPipeline(String path) {
-  final bytes = File(path).readAsBytesSync();
-  var image = img.decodeImage(bytes);
-  if (image == null) return path;
-
-  image = _deskew(image);
-  image = _formatA4(image);
-  image = _adaptiveThreshold(image);
-  image = _blacken(image);
-
-  final dir = File(path).parent.path;
-  final ts = DateTime.now().millisecondsSinceEpoch;
-  final outPath = '$dir/filtered_$ts.jpg';
-  File(outPath).writeAsBytesSync(img.encodeJpg(image, quality: 95));
-  return outPath;
-}
 
 class PagesEditorScreen extends StatefulWidget {
   final List<String> imagePaths;
@@ -331,37 +169,14 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
     );
   }
 
-  Future<String> _applyDocumentFilter(String path) async {
-    return compute(_runDocumentPipeline, path);
-  }
-
   Future<void> _editPage(int index) async {
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: _paths[index],
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Edytuj stronę ${index + 1}',
-          toolbarColor: const Color(0xFF1A1A2E),
-          toolbarWidgetColor: Colors.white,
-          statusBarColor: const Color(0xFF1A1A2E),
-          backgroundColor: const Color(0xFF0F0F23),
-          dimmedLayerColor: const Color(0xFF0F0F23),
-          cropFrameColor: _accentBlue,
-          cropGridColor: _accentBlue,
-          activeControlsWidgetColor: _accentBlue,
-          showCropGrid: true,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-          hideBottomControls: false,
-          aspectRatioPresets: [
-            CropAspectRatioPreset.original,
-            CropAspectRatioPreset.ratio4x3,
-            CropAspectRatioPreset.square,
-          ],
-        ),
-      ],
+    final corners = await Navigator.push<List<Offset>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuadCropScreen(imagePath: _paths[index]),
+      ),
     );
-    if (croppedFile == null || !mounted) return;
+    if (corners == null || !mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -370,7 +185,24 @@ class _PagesEditorScreenState extends State<PagesEditorScreen> {
       ),
     );
 
-    final resultPath = await _applyDocumentFilter(croppedFile.path);
+    final cornersList = <double>[
+      corners[0].dx,
+      corners[0].dy,
+      corners[1].dx,
+      corners[1].dy,
+      corners[2].dx,
+      corners[2].dy,
+      corners[3].dx,
+      corners[3].dy,
+    ];
+
+    final perspectivePath = await compute(
+      applyPerspectiveTransformIsolate,
+      {'path': _paths[index], 'corners': cornersList},
+    );
+
+    final resultPath =
+        await compute(runDocumentPipelineNoDeskew, perspectivePath);
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       setState(() => _paths[index] = resultPath);
