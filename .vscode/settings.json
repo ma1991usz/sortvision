@@ -1,0 +1,17 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "chat.tools.terminal.autoApprove": {
+        "flutter": true,
+        "Get-ChildItem": true,
+        "Sort-Object": true,
+        "Select-Object": true,
+        "ForEach-Object": true,
+        "Where-Object": true,
+        "Select-String": true,
+        "Test-Path": true
+    },
+    "python.defaultInterpreterPath": "${workspaceFolder}/../sortvision-router/venv/Scripts/python.exe",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/../sortvision-router"
+    ]
+}
