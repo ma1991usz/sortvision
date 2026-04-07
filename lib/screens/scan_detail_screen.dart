@@ -39,15 +39,15 @@ class _ScanDetailScreenState extends State<ScanDetailScreen>
   int _totalPages = 0;
   int _currentPage = 0;
   bool _pdfReady = false;
-  bool _mounted = false;
+  bool _showPdf = false;
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) setState(() => _mounted = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _showPdf = true);
     });
   }
 
@@ -294,7 +294,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen>
               height: MediaQuery.of(context).size.height * 0.45,
               child: Stack(
                 children: [
-                  if (_mounted)
+                  if (_showPdf)
                     PDFView(
                       key: Key(widget.filePath),
                       filePath: widget.filePath,
@@ -313,11 +313,22 @@ class _ScanDetailScreenState extends State<ScanDetailScreen>
                       }),
                       onPageChanged: (page, _) =>
                           setState(() => _currentPage = (page ?? 0) + 1),
+                    )
+                  else
+                    Container(color: _bgColor),
+                  AnimatedOpacity(
+                    opacity: (_pdfReady && _showPdf) ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: IgnorePointer(
+                      ignoring: _pdfReady && _showPdf,
+                      child: Container(
+                        color: _bgColor,
+                        child: const Center(
+                          child: CircularProgressIndicator(color: _accentBlue),
+                        ),
+                      ),
                     ),
-                  if (!_pdfReady)
-                    const Center(
-                      child: CircularProgressIndicator(color: _accentBlue),
-                    ),
+                  ),
                   if (_pdfReady && _totalPages > 1)
                     Positioned(
                       bottom: 12,

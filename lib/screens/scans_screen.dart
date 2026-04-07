@@ -130,8 +130,12 @@ class _ScansScreenState extends State<ScansScreen> {
   void _openPdf(File file) async {
     final deleted = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => ScanDetailScreen(filePath: file.path),
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, __, ___) => ScanDetailScreen(filePath: file.path),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
     if (deleted == true) _loadScans();
