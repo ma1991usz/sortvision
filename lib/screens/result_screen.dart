@@ -562,14 +562,16 @@ class _ResultScreenState extends State<ResultScreen> {
                         height: 52,
                         child: Tooltip(
                           message: 'Pełny tekst OCR',
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _textPrimary,
-                              side: const BorderSide(
-                                  color: _accentGrey, width: 1.5),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _accentGreen,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor:
+                                  _accentGreen.withAlpha(120),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14)),
                               padding: EdgeInsets.zero,
+                              elevation: 0,
                             ),
                             onPressed:
                                 (_isLoading || _isOcrLoading) ? null : _runOcr,
@@ -578,10 +580,10 @@ class _ResultScreenState extends State<ResultScreen> {
                                     width: 18,
                                     height: 18,
                                     child: CircularProgressIndicator(
-                                        color: _accentBlue, strokeWidth: 2),
+                                        color: Colors.white, strokeWidth: 2),
                                   )
                                 : const Icon(Icons.text_fields_rounded,
-                                    size: 22),
+                                    color: Colors.white, size: 22),
                           ),
                         ),
                       ),
